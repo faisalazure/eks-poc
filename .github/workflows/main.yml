@@ -1,53 +1,44 @@
-workflow "Demo workflow" {
-  on = "push"
-  resolves = ["SNS Notification"]
-}
-
-action "Build Image" {
-  uses = "actions/docker/cli@c08a5fc9e0286844156fefff2c141072048141f6"
-  runs = ["/bin/sh", "-c", "docker build -t $IMAGE_URI ."]
-  env = {
-    IMAGE_URI = "587250238214.dkr.ecr.us-east-1.amazonaws.com/eks-poc:latest"
-  }
-}
-
-action "ECR Login" {
-  uses = "actions/aws/cli@51b5c9b60da75d1d3f97ff91ed2e4efc19dd5474"
-  needs = ["Build Image"]
-  env = {
-    AWS_DEFAULT_REGION = "us-east-1"
-    AWS_REGION = "$AWS_DEFAULT_REGION"
-  }
-  runs = ["/bin/sh", "-c", "aws ecr get-login --no-include-email | sh"]
-  secrets = [
-    "AWS_ACCESS_KEY_ID",
-    "AWS_SECRET_ACCESS_KEY",
-  ]
-}
-
-
-action "Push ECR" {
-  uses = "actions/docker/cli@c08a5fc9e0286844156fefff2c141072048141f6"
-  needs = ["ECR Login"]
-  runs = ["/bin/sh", "-c",  "docker push $IMAGE_URI"]
-  secrets = ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
-  env = {
-    IMAGE_URI = "587250238214.dkr.ecr.us-east-1.amazonaws.com/eks-poc:latest"
-  }
-
-}
-
-action "Deploy to EKS" {
-  uses = "actions/aws/kubectl@master"
-  #   args = ["get all"]
-  args = ["apply -f deployement.yaml"]
-  needs = ["Push ECR"]
-  secrets = [
-    "KUBE_CONFIG_DATA",
-    "AWS_ACCESS_KEY_ID",
-    "AWS_SECRET_ACCESS_KEY",
-  ]
-  env = {
-    AWS_DEFAULT_REGION = "us-east-1"
-  }
-}
+- name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+        
+- name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+      
+- name: Build, tag, and push image to Amazon ECR
+    id: build-image
+    env:
+    ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+    run: |
+    cd site
+    docker image build \
+    --tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest \
+    --tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.SHORT_SHA }} \
+    .
+    docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+    docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.SHORT_SHA }}
+    
+- name: Install and configure kubectl
+    run: |
+    VERSION=$(curl --silent https://storage.googleapis.com/kubernetes-release/release/stable.txt)
+    curl https://storage.googleapis.com/kubernetes-release/release/$VERSION/bin/linux/amd64/kubectl \
+        --progress-bar \
+        --location \
+        --remote-name
+    chmod +x kubectl
+    sudo mv kubectl /usr/local/bin/
+    echo ${{ secrets.KUBECONFIG }} | base64 --decode > kubeconfig.yaml
+    
+- name: Deploy
+    env:
+    ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+    run: |
+    export ECR_REPOSITORY=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}
+    export IMAGE_TAG=${{ env.SHORT_SHA }}
+    export KUBECONFIG=kubeconfig.yaml
+    envsubst < k8s/kustomization.tmpl.yaml > k8s/kustomization.yaml
+    kubectl kustomize k8s | kubectl apply -f -
