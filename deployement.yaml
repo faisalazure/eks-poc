@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "poc-deployement"
+  namespace: "eks-poc"
+spec:
+  selector:
+    matchLabels:
+      app: "poc"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: "poc"
+    spec:
+      containers:
+      - image: 587250238214.dkr.ecr.us-east-1.amazonaws.com/eks-poc:latest
+        imagePullPolicy: Always
+        name: "poc"
+        ports:
+        - containerPort: 5000
