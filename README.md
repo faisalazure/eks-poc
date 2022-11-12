@@ -5,6 +5,9 @@
 >
 > **CICD Approach**
 
+![alt text](https://github.com/faisalazure/eks-poc/blob/master/image1.png)
+
+
 > The CICD approach here we are using is quote simple but according to
 > best practice. Below is the breakdown of whole cicd system
 >
