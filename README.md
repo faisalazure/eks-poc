@@ -1,5 +1,5 @@
 > **The app is live at :**
->
+> (http://k8s-ekspoc-pocingre-636ebb00d8-1404276073.us-east-1.elb.amazonaws.com/)
 > I have used secrets in the deployment and cicd. Also used the
 > declarative approach with HELM inside kubernetes.
 >
