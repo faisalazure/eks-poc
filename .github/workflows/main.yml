@@ -40,10 +40,9 @@ jobs:
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
         
-    - name: Trigger deploy
-      uses: angela-mylo/EKSKUBECTL@master
+    - uses: actions-hub/kubectl@master
       env:
-        KUBE_CONFIG_DATA: ${{ secrets.KUBECONFIG }}
+        KUBE_CONFIG: ${{ secrets.KUBECONFIG }}
       with:
-        args: apply deployement.yaml
+        args: get pods
     
