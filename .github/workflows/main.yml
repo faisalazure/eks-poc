@@ -40,8 +40,10 @@ jobs:
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
         
-    - uses: tale/kubectl-action@v1
+    - uses: actions-hub/kubectl@master
+      env:
+        KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
       with:
-        base64-kube-config: ${{ secrets.KUBE_CONFIG }}
+        args: get pods
     - run: kubectl get all -n eks-poc
     
