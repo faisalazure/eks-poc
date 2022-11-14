@@ -14,11 +14,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v3
-    
-    - uses: azure/setup-kubectl@v3
-      with:
-        version: 'latest' # default is latest stable
-      id: install
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1-node16
@@ -45,10 +40,8 @@ jobs:
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
         
-    - name: Update kube config
-      run: aws eks update-kubeconfig --name eks-poc --region us-east-1 --role-arn arn:aws:iam::587250238214:role/eks-poc-assume-role
-    
-    - name: Deploy to EKS
-      run: |
-        kubectl apply -f deployement.yaml
+    - uses: tale/kubectl-action@v1
+      with:
+        base64-kube-config: ${{ secrets.KUBE_CONFIG }}
+    - run: kubectl get all -n eks-poc
     
